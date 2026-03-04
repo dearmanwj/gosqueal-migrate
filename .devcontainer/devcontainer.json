@@ -1,0 +1,16 @@
+{
+  "name": "Go",
+  "image": "mcr.microsoft.com/devcontainers/go:1.25",
+  "runArgs": ["--name", "gosqueal-mgrate"],
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go"
+      ]
+    }
+  },
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y sqlite3 && go mod download"
+}
