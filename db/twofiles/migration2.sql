@@ -1,0 +1,1 @@
+CREATE TABLE new_table (col1 INTEGER, col2 INTEGER);
