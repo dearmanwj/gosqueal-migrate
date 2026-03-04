@@ -1,4 +1,4 @@
-package migrations
+package gosqueal
 
 import (
 	"database/sql"
@@ -31,7 +31,7 @@ func TestRunOneMigration(t *testing.T) {
 	db := setupTestDB(t)
 
 	// When
-	err := RunMigrations(db, oneFileSet)
+	err := Run(db, oneFileSet)
 
 	// Then
 	if err != nil {
@@ -54,7 +54,7 @@ func TestRunTwoMigrations(t *testing.T) {
 	db := setupTestDB(t)
 
 	// When
-	err := RunMigrations(db, twoFileSet)
+	err := Run(db, twoFileSet)
 
 	// Then
 	if err != nil {
@@ -85,8 +85,8 @@ func TestShouldFail_WhenReRunChangedMigration(t *testing.T) {
 	db := setupTestDB(t)
 
 	// When
-	_ = RunMigrations(db, oneFileSet)
-	err := RunMigrations(db, oneFileCorruptedSet)
+	_ = Run(db, oneFileSet)
+	err := Run(db, oneFileCorruptedSet)
 
 	// Then
 	if err == nil {

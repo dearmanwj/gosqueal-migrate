@@ -1,4 +1,4 @@
-package migrations
+package gosqueal
 
 import (
 	"database/sql"
@@ -9,7 +9,9 @@ import (
 	"io/fs"
 )
 
-func RunMigrations(db *sql.DB, sqlFiles embed.FS) error {
+// Run applies all SQL migrations from the embedded filesystem to the database.
+// It creates a migration_histories table to track applied migrations and their checksums.
+func Run(db *sql.DB, sqlFiles embed.FS) error {
 	createHistoryTable(db)
 
 	return fs.WalkDir(sqlFiles, ".", func(path string, d fs.DirEntry, err error) error {
