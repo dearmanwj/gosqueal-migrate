@@ -29,7 +29,7 @@ func Run(db *sql.DB, sqlFiles embed.FS) error {
 }
 
 func executeMigration(db *sql.DB, filename string, sqlBytes []byte) error {
-	row := db.QueryRow("SELECT hash, applied FROM migration_histories WHERE name = $1", filename)
+	row := db.QueryRow("SELECT hash, applied FROM migration_histories WHERE name = ?", filename)
 	var storedHash string
 	var applied bool
 	err := row.Scan(&storedHash, &applied)
@@ -48,7 +48,7 @@ func executeMigration(db *sql.DB, filename string, sqlBytes []byte) error {
 	incomingChecksumHex := fmt.Sprintf("%016x", incomingChecksum)
 
 	if newMigration {
-		_, err := db.Exec("INSERT INTO migration_histories (name, hash, applied) VALUES ($1, $2, false)", filename, incomingChecksumHex)
+		_, err := db.Exec("INSERT INTO migration_histories (name, hash, applied) VALUES (?, ?, false)", filename, incomingChecksumHex)
 		if err != nil {
 			return fmt.Errorf("could not insert migration into history table %w", err)
 		}
@@ -65,7 +65,7 @@ func executeMigration(db *sql.DB, filename string, sqlBytes []byte) error {
 	if err != nil {
 		return fmt.Errorf("could not apply migration %v, sql error %w", filename, err)
 	}
-	_, err = db.Exec("UPDATE migration_histories SET applied = true WHERE name = $1", filename)
+	_, err = db.Exec("UPDATE migration_histories SET applied = true WHERE name = ?", filename)
 	if err != nil {
 		return fmt.Errorf("error updating row in histories after successful migration %w", err)
 	}
