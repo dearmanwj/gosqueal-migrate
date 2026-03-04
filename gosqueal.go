@@ -7,12 +7,43 @@ import (
 	"fmt"
 	"hash/crc64"
 	"io/fs"
+	"reflect"
+	"strings"
 )
+
+type dialect int
+
+const (
+	dialectMySQL dialect = iota
+	dialectPostgres
+	dialectSQLite
+)
+
+func detectDialect(db *sql.DB) dialect {
+	driverType := reflect.TypeOf(db.Driver()).String()
+	switch {
+	case strings.Contains(driverType, "pq") || strings.Contains(driverType, "pgx") || strings.Contains(driverType, "postgres"):
+		return dialectPostgres
+	case strings.Contains(driverType, "mysql"):
+		return dialectMySQL
+	default:
+		return dialectSQLite
+	}
+}
+
+func placeholder(d dialect, n int) string {
+	if d == dialectPostgres {
+		return fmt.Sprintf("$%d", n)
+	}
+	return "?"
+}
 
 // Run applies all SQL migrations from the embedded filesystem to the database.
 // It creates a migration_histories table to track applied migrations and their checksums.
 func Run(db *sql.DB, sqlFiles embed.FS) error {
 	createHistoryTable(db)
+
+	dialect := detectDialect(db)
 
 	return fs.WalkDir(sqlFiles, ".", func(path string, d fs.DirEntry, err error) error {
 		if !d.IsDir() {
@@ -20,7 +51,7 @@ func Run(db *sql.DB, sqlFiles embed.FS) error {
 			if err != nil {
 				return err
 			}
-			return executeMigration(db, d.Name(), sqlBytes)
+			return executeMigration(db, dialect, d.Name(), sqlBytes)
 		}
 
 		return err
@@ -28,8 +59,9 @@ func Run(db *sql.DB, sqlFiles embed.FS) error {
 
 }
 
-func executeMigration(db *sql.DB, filename string, sqlBytes []byte) error {
-	row := db.QueryRow("SELECT hash, applied FROM migration_histories WHERE name = ?", filename)
+func executeMigration(db *sql.DB, d dialect, filename string, sqlBytes []byte) error {
+	query := fmt.Sprintf("SELECT hash, applied FROM migration_histories WHERE name = %s", placeholder(d, 1))
+	row := db.QueryRow(query, filename)
 	var storedHash string
 	var applied bool
 	err := row.Scan(&storedHash, &applied)
@@ -48,7 +80,8 @@ func executeMigration(db *sql.DB, filename string, sqlBytes []byte) error {
 	incomingChecksumHex := fmt.Sprintf("%016x", incomingChecksum)
 
 	if newMigration {
-		_, err := db.Exec("INSERT INTO migration_histories (name, hash, applied) VALUES (?, ?, false)", filename, incomingChecksumHex)
+		query := fmt.Sprintf("INSERT INTO migration_histories (name, hash, applied) VALUES (%s, %s, false)", placeholder(d, 1), placeholder(d, 2))
+		_, err := db.Exec(query, filename, incomingChecksumHex)
 		if err != nil {
 			return fmt.Errorf("could not insert migration into history table %w", err)
 		}
@@ -65,7 +98,8 @@ func executeMigration(db *sql.DB, filename string, sqlBytes []byte) error {
 	if err != nil {
 		return fmt.Errorf("could not apply migration %v, sql error %w", filename, err)
 	}
-	_, err = db.Exec("UPDATE migration_histories SET applied = true WHERE name = ?", filename)
+	query = fmt.Sprintf("UPDATE migration_histories SET applied = true WHERE name = %s", placeholder(d, 1))
+	_, err = db.Exec(query, filename)
 	if err != nil {
 		return fmt.Errorf("error updating row in histories after successful migration %w", err)
 	}

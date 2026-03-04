@@ -3,7 +3,10 @@
   "image": "mcr.microsoft.com/devcontainers/go:1.25",
   "runArgs": ["--name", "gosqueal-mgrate"],
   "features": {
-    "ghcr.io/devcontainers/features/common-utils:2": {}
+    "ghcr.io/devcontainers/features/common-utils:2": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": false
+    }
   },
   "customizations": {
     "vscode": {
